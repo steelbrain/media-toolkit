@@ -1,0 +1,47 @@
+{
+  "name": "Audio Toolkit Container",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:America/Los_Angeles}"
+    }
+  },
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "biomejs.biome",
+        "ms-vscode-remote.remote-containers"
+      ],
+      "settings": {
+        "workbench.editor.enablePreview": false,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          }
+        }
+      }
+    }
+  },
+  "mounts": [
+    "source=container-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=container-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
+  "containerUser": "node",
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace"
+}
