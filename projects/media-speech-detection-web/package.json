@@ -1,0 +1,36 @@
+{
+  "name": "@steelbrain/media-speech-detection-web",
+  "version": "1.0.0",
+  "description": "Enterprise-grade speech detection using Silero VAD ONNX model for web browsers",
+  "files": [
+    "dist",
+    "silero_vad.onnx"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "zshy",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "zshy": {
+    "exports": "./src/index.ts"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "zshy": "^0.2.5"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  }
+}

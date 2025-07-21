@@ -1,0 +1,42 @@
+{
+  "name": "@steelbrain/media-ingest-audio",
+  "version": "1.0.0",
+  "description": "Takes an incoming MediaStream and converts it into a ReadableStream for downstream consumers",
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "zshy",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "zshy": {
+    "exports": {
+      ".": "./src/index.ts",
+      "./audio-processor": "./src/audio-processor.ts"
+    }
+  },
+  "devDependencies": {
+    "@types/audioworklet": "^0.0.81",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "zshy": "^0.2.5"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.cts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./audio-processor": {
+      "types": "./dist/audio-processor.d.cts",
+      "import": "./dist/audio-processor.js",
+      "require": "./dist/audio-processor.cjs"
+    }
+  }
+}
