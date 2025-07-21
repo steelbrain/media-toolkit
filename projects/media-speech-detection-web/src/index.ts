@@ -21,63 +21,16 @@ export interface VADConfig {
   minSpeechDurationMs?: number;
   /** Grace period in milliseconds before confirming speech end. Default: 400ms */
   redemptionDurationMs?: number;
-  /** Lookback buffer duration in milliseconds for smooth speech start. Default: 192ms */
+  /** Lookback buffer duration in milliseconds for smooth speech start. Default: 384ms */
   lookBackDurationMs?: number;
-  /** Speech padding in milliseconds. Default: 64ms */
-  speechPadMs?: number;
 }
 
 /**
  * Combined options for the simple VAD interface
  */
-export interface VADOptions extends VADEventHandlers, VADConfig {}
-
-/**
- * Speech events sink - processes audio and emits speech detection events
- *
- * Usage:
- * ```typescript
- * audioStream.pipeTo(speechEvents({
- *   onSpeechStart: () => console.log('🎤 Speech started'),
- *   onSpeechEnd: () => console.log('🔇 Speech ended'),
- *   threshold: 0.5
- * }));
- * ```
- */
-export function speechEvents(options: VADOptions = {}): WritableStream<Float32Array> {
-  // Internal state
-  let vadProcessor: VADProcessor | null = null;
-
-  return new WritableStream<Float32Array>({
-    start: async () => {
-      // Initialize VAD processor
-      vadProcessor = new VADProcessor(options);
-      await vadProcessor.initialize();
-    },
-
-    write: async (chunk) => {
-      if (!vadProcessor) {
-        throw new Error('VAD processor not initialized');
-      }
-
-      // Process audio chunk - speech chunks are handled via events
-      await vadProcessor.processChunk(chunk);
-    },
-
-    close: async () => {
-      if (vadProcessor) {
-        // Finalize any remaining speech
-        vadProcessor.finalize();
-        await vadProcessor.destroy();
-      }
-    },
-
-    abort: async () => {
-      if (vadProcessor) {
-        await vadProcessor.destroy();
-      }
-    }
-  });
+export interface VADOptions extends VADEventHandlers, VADConfig {
+  /** If true, don't emit speech chunks downstream. Only trigger callbacks. Default: false */
+  noEmit?: boolean;
 }
 
 /**
@@ -91,6 +44,15 @@ export function speechEvents(options: VADOptions = {}): WritableStream<Float32Ar
  * });
  *
  * audioStream.pipeThrough(speechTransform).pipeTo(speechProcessor);
+ *
+ * // .tee() pattern for events-only processing
+ * const [liveStream, eventsStream] = audioStream.tee();
+ * liveStream.pipeTo(speechProcessor);
+ * eventsStream.pipeThrough(speechFilter({
+ *   noEmit: true,                      // Don't emit chunks
+ *   onSpeechStart: () => showRecordingIndicator(),
+ *   onSpeechEnd: () => hideRecordingIndicator()
+ * }));
  * ```
  */
 export function speechFilter(options: VADOptions = {}): TransformStream<Float32Array, Float32Array> {
@@ -109,22 +71,31 @@ export function speechFilter(options: VADOptions = {}): TransformStream<Float32A
 
       const speechChunks = await vadProcessor.processChunk(chunk);
       if (speechChunks.length > 0) {
-        options.onDebugLog?.(`VAD Transform: Outputting ${speechChunks.length} speech chunks`);
+        options.onDebugLog?.(`VAD Transform: Processing ${speechChunks.length} speech chunks`);
       }
-      for (const speechChunk of speechChunks) {
-        controller.enqueue(speechChunk);
+
+      // Only emit chunks downstream if noEmit is false (default behavior)
+      if (!options.noEmit) {
+        for (const speechChunk of speechChunks) {
+          controller.enqueue(speechChunk);
+        }
       }
     },
 
-    flush: async (controller) => {
+    flush: async controller => {
       if (vadProcessor) {
         const finalChunks = vadProcessor.finalize();
-        for (const chunk of finalChunks) {
-          controller.enqueue(chunk);
+
+        // Only emit final chunks if noEmit is false
+        if (!options.noEmit) {
+          for (const chunk of finalChunks) {
+            controller.enqueue(chunk);
+          }
         }
+
         await vadProcessor.destroy();
       }
-    }
+    },
   });
 }
 
@@ -138,7 +109,6 @@ class VADProcessor {
   private readonly minSpeechFrames: number;
   private readonly redemptionFrames: number;
   private readonly lookBackFrames: number;
-  private readonly speechPadFrames: number;
 
   // Event handlers
   private readonly eventHandlers: VADEventHandlers;
@@ -176,11 +146,10 @@ class VADProcessor {
 
     // Convert configuration to internal units
     this.threshold = Math.max(0.01, Math.min(0.99, options.threshold ?? 0.5));
-    this.negativeThreshold = Math.max(0.01, this.threshold - 0.15);
+    this.negativeThreshold = Math.max(0.01, Math.min(this.threshold - 0.01, this.threshold - 0.15));
     this.minSpeechFrames = Math.max(1, Math.round((options.minSpeechDurationMs ?? 160) / 32));
     this.redemptionFrames = Math.max(1, Math.round((options.redemptionDurationMs ?? 400) / 32));
-    this.lookBackFrames = Math.max(0, Math.round((options.lookBackDurationMs ?? 192) / 32)); // Default: 6 frames
-    this.speechPadFrames = Math.max(0, Math.round((options.speechPadMs ?? 64) / 32));
+    this.lookBackFrames = Math.max(0, Math.round((options.lookBackDurationMs ?? 384) / 32)); // Default: 12 frames
   }
 
   async initialize(): Promise<void> {
@@ -210,8 +179,11 @@ class VADProcessor {
 
       // Detect speech
       const speechProbability = await this.detectSpeech(frame);
-      if (speechProbability > 0) { // Only log when there's some chance of speech
-        this.eventHandlers.onDebugLog?.(`VAD: Frame ${this.frameIndex}, probability: ${speechProbability.toFixed(3)}, state: ${this.vadState}`);
+      if (speechProbability > 0) {
+        // Only log when there's some chance of speech
+        this.eventHandlers.onDebugLog?.(
+          `VAD: Frame ${this.frameIndex}, probability: ${speechProbability.toFixed(3)}, state: ${this.vadState}`
+        );
       }
       const speechChunks = await this.handleSpeechDetection(speechProbability, frame);
 
@@ -265,13 +237,13 @@ class VADProcessor {
   private updateLookBackBuffer(frame: Float32Array): void {
     if (this.lookBackFrames === 0) return;
 
+    // Only build lookback buffer during silence
+    // Don't clear it during other states - it gets cleared when used
     if (this.vadState === 'silent') {
       this.lookBackBuffer.push(new Float32Array(frame));
       if (this.lookBackBuffer.length > this.lookBackFrames) {
         this.lookBackBuffer.shift();
       }
-    } else if (this.vadState === 'speaking') {
-      this.lookBackBuffer = [];
     }
   }
 
@@ -280,12 +252,12 @@ class VADProcessor {
       return 0;
     }
 
-    try {
-      // Create contextual frame
-      const contextualFrame = new Float32Array(this.CONTEXT_SIZE + audioFrame.length);
-      contextualFrame.set(this.context);
-      contextualFrame.set(audioFrame, this.CONTEXT_SIZE);
+    // Create contextual frame
+    const contextualFrame = new Float32Array(this.CONTEXT_SIZE + audioFrame.length);
+    contextualFrame.set(this.context);
+    contextualFrame.set(audioFrame, this.CONTEXT_SIZE);
 
+    try {
       // Create input tensors
       const audioTensor = new ort.Tensor('float32', contextualFrame, [1, contextualFrame.length]);
       const srTensor = new ort.Tensor('int64', new BigInt64Array([BigInt(this.SAMPLE_RATE)]), [1]);
@@ -294,7 +266,7 @@ class VADProcessor {
       const results = await this.session.run({
         input: audioTensor,
         state: this.state,
-        sr: srTensor
+        sr: srTensor,
       });
 
       // Update state and context
@@ -304,6 +276,8 @@ class VADProcessor {
       return (results.output as ort.Tensor).data[0] as number;
     } catch (error) {
       this.eventHandlers.onError?.(error instanceof Error ? error : new Error(String(error)));
+      // Update context even on error to maintain continuity
+      this.context.set(contextualFrame.slice(-this.CONTEXT_SIZE));
       return 0;
     }
   }
@@ -331,12 +305,15 @@ class VADProcessor {
             this.speechStartTime = Date.now();
             this.redemptionCounter = 0;
 
-            // Output lookback + speech buffer with padding
-            const smoothFrames = [...this.lookBackBuffer, ...this.speechBuffer];
+            // Output lookback + speech buffer (natural audio context)
+            const speechFrames = [...this.lookBackBuffer, ...this.speechBuffer];
+            const lookbackCount = this.lookBackBuffer.length;
+            const speechCount = this.speechBuffer.length;
             this.lookBackBuffer = [];
-            const paddedFrames = this.applySpeechPadding(smoothFrames, 'start');
-            this.eventHandlers.onDebugLog?.(`VAD: Speech confirmed! Outputting ${paddedFrames.length} frames (${this.lookBackBuffer.length} lookback + ${this.speechBuffer.length} speech + padding)`);
-            outputChunks.push(...paddedFrames);
+            this.eventHandlers.onDebugLog?.(
+              `VAD: Speech confirmed! Outputting ${speechFrames.length} frames (${lookbackCount} lookback + ${speechCount} speech)`
+            );
+            outputChunks.push(...speechFrames);
             this.speechBuffer = [];
 
             this.eventHandlers.onSpeechStart?.();
@@ -368,6 +345,8 @@ class VADProcessor {
           this.redemptionCounter = 0;
           outputChunks.push(new Float32Array(frame));
         } else {
+          // Continue outputting intermediate frames during redemption period
+          outputChunks.push(new Float32Array(frame));
           this.redemptionCounter++;
           if (this.redemptionCounter >= this.redemptionFrames) {
             this.endSpeechSegment();
@@ -405,26 +384,6 @@ class VADProcessor {
     this.speechFrameCount = 0;
     this.redemptionCounter = 0;
     this.speechBuffer = [];
-  }
-
-  private applySpeechPadding(frames: Float32Array[], position: 'start' | 'end'): Float32Array[] {
-    if (this.speechPadFrames === 0) return frames;
-
-    const paddedFrames: Float32Array[] = [];
-
-    if (position === 'start') {
-      for (let i = 0; i < this.speechPadFrames; i++) {
-        paddedFrames.push(new Float32Array(this.FRAME_SIZE));
-      }
-      paddedFrames.push(...frames);
-    } else {
-      paddedFrames.push(...frames);
-      for (let i = 0; i < this.speechPadFrames; i++) {
-        paddedFrames.push(new Float32Array(this.FRAME_SIZE));
-      }
-    }
-
-    return paddedFrames;
   }
 
   private appendBuffer(buffer: Float32Array, newData: Float32Array): Float32Array {

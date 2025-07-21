@@ -7,13 +7,13 @@ A comprehensive Next.js 15 demonstration app showcasing the `@steelbrain/media-s
 This demo showcases the complete speech detection pipeline:
 
 ### 🎤 **Real-time Speech Detection**
-- Enterprise-grade speech detection using Silero VAD ONNX model
+- Production-ready speech detection using Silero VAD ONNX model
 - Zero-configuration setup with optimal defaults
 - Real-time speech/silence classification with visual feedback
 
-### 🔄 **Streaming Architecture** 
+### 🔄 **Streaming Architecture**
 - Modern Web Streams API pipeline: `microphone → speech detection → audio processor`
-- Efficient processing with minimal latency (~256ms end-to-end)
+- Efficient processing with minimal latency (~160ms end-to-end)
 - Automatic resource cleanup and error handling
 
 ### 🎧 **Audio Processing Pipeline**
@@ -72,7 +72,7 @@ npm run start
 
 ### 2. **Test Speech Detection**
    - Speak naturally - you'll see "🎤 Speech started" events in real-time
-   - Pause speaking - you'll see "🔇 Speech ended" events  
+   - Pause speaking - you'll see "🔇 Speech ended" events
    - Background noise and short sounds are automatically filtered out
    - Watch the speech buffer grow as chunks are captured
 
@@ -96,13 +96,12 @@ const speechTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
   onVadMisfire: () => console.log('⚠️ Speech too short'),
-  
+
   // Optimal defaults (customizable)
   threshold: 0.5,                    // Speech detection sensitivity
   minSpeechDurationMs: 160,          // Minimum speech length
   redemptionDurationMs: 400,         // Grace period for pauses
-  lookBackDurationMs: 192,           // Smooth speech start buffer
-  speechPadMs: 64                    // Silence padding around speech
+  lookBackDurationMs: 384,           // Smooth speech start buffer
 });
 
 // Stream processing pipeline
@@ -123,8 +122,8 @@ await audioStream
 ### Performance Characteristics
 
 - **Detection Latency**: ~160ms for speech confirmation
-- **Lookback Latency**: ~192ms for smooth speech start capture
-- **Total End-to-End**: ~256ms including processing overhead
+- **Ongoing Latency**: ~32ms per frame once speaking
+- **Lookback Buffer**: ~384ms historical context (not latency)
 - **CPU Usage**: <1-2ms per 32ms audio frame for inference
 - **Memory Footprint**: ~8KB buffering per stream + 2.3MB model
 - **Bandwidth Reduction**: Typically 80-90% reduction (speech-only output)
@@ -141,13 +140,12 @@ const speechTransform = speechFilter({
   onVadMisfire: () => void,            // Short speech segment filtered
   onError: (error) => void,            // Error handling
   onDebugLog: (message) => void,       // Internal state logging
-  
+
   // Detection Configuration (all optional)
   threshold: 0.5,                      // Speech probability threshold (0-1)
   minSpeechDurationMs: 160,            // Minimum speech duration (ms)
-  redemptionDurationMs: 400,           // Grace period before speech end (ms)  
-  lookBackDurationMs: 192,             // Lookback buffer duration (ms)
-  speechPadMs: 64                      // Padding around speech segments (ms)
+  redemptionDurationMs: 400,           // Grace period before speech end (ms)
+  lookBackDurationMs: 384,             // Lookback buffer duration (ms)
 });
 ```
 
@@ -155,7 +153,7 @@ const speechTransform = speechFilter({
 
 Requires modern browsers with WASM and Web Workers:
 - ✅ Chrome 69+
-- ✅ Firefox 79+  
+- ✅ Firefox 79+
 - ✅ Safari 14+
 - ✅ Edge 79+
 
@@ -203,7 +201,7 @@ This demo illustrates best practices for integrating speech detection into web a
 ### Stream-First Design
 Uses Web Streams API throughout for optimal performance and memory efficiency.
 
-### Event-Driven Architecture  
+### Event-Driven Architecture
 Clean separation of concerns with callback-based event handling.
 
 ### Resource Management

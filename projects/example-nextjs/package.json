@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@steelbrain/media-buffer-speech": "*",
     "@steelbrain/media-ingest-audio": "*",
     "@steelbrain/media-speech-detection-web": "*",
     "next": "15.4.2",

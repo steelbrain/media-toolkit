@@ -3,21 +3,9 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "lib": [
-      "ES2022",
-      "DOM"
-    ],
-    "types": [
-      "@types/audioworklet"
-    ]
+    "lib": ["ES2022", "DOM"],
+    "types": ["@types/audioworklet"]
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "dist",
-    "__tests__",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["dist", "__tests__", "**/*.test.ts", "**/*.spec.ts"]
 }

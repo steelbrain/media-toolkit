@@ -6,11 +6,32 @@
     "dist"
   ],
   "license": "MIT",
+  "author": "Anees Iqbal <hello@aneesiqbal.ai>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/steelbrain/media-toolkit",
+    "directory": "projects/media-ingest-audio"
+  },
+  "homepage": "https://github.com/steelbrain/media-toolkit/tree/main/projects/media-ingest-audio",
+  "bugs": "https://github.com/steelbrain/media-toolkit/issues",
+  "keywords": [
+    "audio",
+    "media",
+    "stream",
+    "microphone",
+    "webrtc",
+    "mediastream",
+    "audioworklet",
+    "resampling"
+  ],
   "type": "module",
   "scripts": {
     "build": "zshy",
     "test": "vitest",
     "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "zshy": {
     "exports": {

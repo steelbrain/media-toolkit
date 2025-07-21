@@ -1,6 +1,6 @@
 # @steelbrain/media-speech-detection-web
 
-Enterprise-grade Speech Detection using Silero VAD ONNX model for web browsers.
+Speech Detection using Silero VAD ONNX model for web browsers.
 
 ## Installation
 
@@ -13,7 +13,7 @@ npm install @steelbrain/media-speech-detection-web
 ## Quick Start
 
 ```typescript
-import { speechFilter, speechEvents } from '@steelbrain/media-speech-detection-web';
+import { speechFilter } from '@steelbrain/media-speech-detection-web';
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
 
 // Get microphone access
@@ -24,7 +24,7 @@ const mediaStream = await navigator.mediaDevices.getUserMedia({
 // Create 16kHz audio stream
 const audioStream = await ingestAudioStream(mediaStream);
 
-// Option 1: Filter audio to only speech chunks
+// Filter audio to only speech chunks
 const vadTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
@@ -35,31 +35,28 @@ await audioStream
   .pipeThrough(vadTransform)
   .pipeTo(speechProcessor);
 
-// Option 2: Events-only (no audio output)
-const vadSink = speechEvents({
-  onSpeechStart: () => console.log('🎤 Speech started'),
-  onSpeechEnd: (speechAudio) => console.log('🔇 Speech ended'),
-  onVadMisfire: () => console.log('⚠️ Short speech segment filtered'),
-  threshold: 0.5,
-  minSpeechDurationMs: 160
-});
+// Events-only (no audio output) using .tee() pattern
+const [processStream, eventsStream] = audioStream.tee();
 
-await audioStream.pipeTo(vadSink);
+// Process audio on one branch
+processStream.pipeTo(speechProcessor);
+
+// Handle events on another branch without outputting audio
+eventsStream.pipeThrough(speechFilter({
+  noEmit: true,  // Don't emit audio chunks
+  onSpeechStart: () => console.log('🎤 Speech started'),
+  onSpeechEnd: () => console.log('🔇 Speech ended'),
+  onVadMisfire: () => console.log('⚠️ Short speech segment filtered')
+}));
 ```
 
 ## API Reference
 
 ### `speechFilter(options): TransformStream<Float32Array, Float32Array>`
 
-Creates a TransformStream that filters audio, outputting only speech chunks.
+Creates a TransformStream that filters audio, outputting only speech chunks. Use the `noEmit` option for events-only processing.
 
 **Usage**: `audioStream.pipeThrough(speechFilter(options)).pipeTo(processor)`
-
-### `speechEvents(options): WritableStream<Float32Array>`
-
-Creates a WritableStream that processes audio and emits speech detection events.
-
-**Usage**: `audioStream.pipeTo(speechEvents(options))`
 
 ### Configuration Options
 
@@ -76,8 +73,10 @@ interface VADOptions {
   threshold?: number;              // Speech detection threshold (0-1). Default: 0.5
   minSpeechDurationMs?: number;    // Minimum speech duration in ms. Default: 160ms
   redemptionDurationMs?: number;   // Grace period before confirming speech end. Default: 400ms
-  lookBackDurationMs?: number;     // Lookback buffer for smooth speech start. Default: 192ms
-  speechPadMs?: number;           // Padding around speech segments. Default: 64ms
+  lookBackDurationMs?: number;     // Lookback buffer for smooth speech start. Default: 384ms
+  
+  // Stream Control
+  noEmit?: boolean;               // Don't emit chunks, only trigger callbacks. Default: false
 }
 ```
 
@@ -90,8 +89,7 @@ The package provides carefully tuned defaults that work well for most use cases:
 | `threshold` | `0.5` | Balanced speech detection |
 | `minSpeechDurationMs` | `160ms` | Filters out very short sounds |
 | `redemptionDurationMs` | `400ms` | Handles natural speech pauses |
-| `lookBackDurationMs` | `192ms` | Captures speech start smoothly |
-| `speechPadMs` | `64ms` | Adds silence padding around speech |
+| `lookBackDurationMs` | `384ms` | Captures natural audio context before speech |
 
 ## Advanced Usage
 

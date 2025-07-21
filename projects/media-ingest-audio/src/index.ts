@@ -5,13 +5,33 @@ export const RECOMMENDED_AUDIO_CONSTRAINTS: MediaTrackConstraints = Object.freez
   sampleRate: 16000,
   channelCount: 1,
   echoCancellation: true,
-  noiseSuppression: true
+  noiseSuppression: true,
 });
 
 /**
- * Converts a MediaStream into a ReadableStream of 16kHz audio data
+ * Configuration options for audio ingestion
  */
-export async function ingestAudioStream(mediaStream: MediaStream): Promise<ReadableStream<Float32Array>> {
+export interface AudioIngestOptions {
+  /** Volume gain multiplier. 1.0 = no change, 2.0 = double volume, 0.5 = half volume. Default: 1.0 */
+  gain?: number;
+}
+
+/**
+ * Converts a MediaStream into a ReadableStream of 16kHz audio data
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const audioStream = await ingestAudioStream(mediaStream);
+ *
+ * // With volume boost
+ * const audioStream = await ingestAudioStream(mediaStream, { gain: 2.0 });
+ *
+ * // With volume reduction
+ * const audioStream = await ingestAudioStream(mediaStream, { gain: 0.5 });
+ * ```
+ */
+export async function ingestAudioStream(mediaStream: MediaStream, options: AudioIngestOptions = {}): Promise<ReadableStream<Float32Array>> {
   if (!mediaStream.getAudioTracks().length) {
     throw new Error('MediaStream must contain at least one audio track');
   }
@@ -32,8 +52,7 @@ export async function ingestAudioStream(mediaStream: MediaStream): Promise<Reada
   };
 
   return new ReadableStream<Float32Array>({
-    start: async (controller) => {
-
+    start: async controller => {
       try {
         // Use 16kHz sample rate like the example snippet
         audioContext = new AudioContext({ sampleRate: 16000 });
@@ -41,11 +60,15 @@ export async function ingestAudioStream(mediaStream: MediaStream): Promise<Reada
         // Load the AudioWorklet module
         await audioContext.audioWorklet.addModule(new URL('./audio-processor', import.meta.url));
 
-        // Create the worklet node
-        workletNode = new AudioWorkletNode(audioContext, 'resampler-processor');
+        // Create the worklet node with gain parameter
+        workletNode = new AudioWorkletNode(audioContext, 'resampler-processor', {
+          processorOptions: {
+            gain: options.gain ?? 1.0,
+          },
+        });
 
         // Listen for processed audio data
-        workletNode.port.onmessage = (event) => {
+        workletNode.port.onmessage = event => {
           if (event.data.type === 'audioData') {
             controller.enqueue(event.data.data);
           }
@@ -57,14 +80,15 @@ export async function ingestAudioStream(mediaStream: MediaStream): Promise<Reada
 
         // Connect to destination to keep the graph alive
         workletNode.connect(audioContext.destination);
-
       } catch (error) {
         console.error('Failed to setup AudioWorklet:', error);
-        throw new Error('AudioWorklet setup failed: ' + (error as Error).message);
+        throw new Error(
+          `AudioWorklet setup failed: ${error != null && typeof error === 'object' && 'message' in error ? error.message : error}`
+        );
       }
     },
     cancel: () => {
       cleanup();
-    }
+    },
   });
 }

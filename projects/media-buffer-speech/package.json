@@ -1,31 +1,29 @@
 {
-  "name": "@steelbrain/media-speech-detection-web",
+  "name": "@steelbrain/media-buffer-speech",
   "version": "1.0.0",
-  "description": "Production-ready speech detection using Silero VAD ONNX model for web browsers",
+  "description": "Speech buffering that accumulates audio chunks and releases them after natural pause periods",
   "files": [
-    "dist",
-    "silero_vad.onnx"
+    "dist"
   ],
   "license": "MIT",
   "author": "Anees Iqbal <hello@aneesiqbal.ai>",
   "repository": {
     "type": "git",
     "url": "https://github.com/steelbrain/media-toolkit",
-    "directory": "projects/media-speech-detection-web"
+    "directory": "projects/media-buffer-speech"
   },
-  "homepage": "https://github.com/steelbrain/media-toolkit/tree/main/projects/media-speech-detection-web",
+  "homepage": "https://github.com/steelbrain/media-toolkit/tree/main/projects/media-buffer-speech",
   "bugs": "https://github.com/steelbrain/media-toolkit/issues",
   "keywords": [
     "speech",
-    "vad",
-    "voice",
     "audio",
+    "buffering",
+    "streaming",
+    "pause",
     "detection",
-    "silero",
-    "onnx",
-    "web",
-    "browser",
-    "streaming"
+    "conversation",
+    "turns",
+    "segments"
   ],
   "scripts": {
     "build": "zshy",
@@ -37,9 +35,6 @@
   },
   "zshy": {
     "exports": "./src/index.ts"
-  },
-  "dependencies": {
-    "onnxruntime-web": "^1.22.0"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

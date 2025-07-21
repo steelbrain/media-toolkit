@@ -8,12 +8,12 @@
 
 ## ✨ Features
 
-🎤 **Real-time Speech Detection** - Advanced speech/silence classification
-📡 **Streaming Architecture** - Built on modern Web Streams API
-🔄 **Zero Configuration** - Works perfectly with optimal defaults
-⚡ **High Performance** - <1ms inference, ~256ms end-to-end latency
-🛠️ **Production Ready** - Comprehensive error handling and resource management
-🌐 **Modern Bundlers** - Works seamlessly with Webpack 5, Next.js, Vite, etc.
+- 🎤 **Real-time Speech Detection** - Advanced speech/silence classification
+- 📡 **Streaming Architecture** - Built on modern Web Streams API
+- 🔄 **Zero Configuration** - Works perfectly with optimal defaults
+- ⚡ **High Performance** - <1ms inference, ~160ms end-to-end latency
+- 🛠️ **Production Ready** - Comprehensive error handling and resource management
+- 🌐 **Modern Bundlers** - Works seamlessly with Webpack 5, Next.js, Vite, etc.
 
 ## 📦 Packages
 
@@ -28,6 +28,7 @@ npm install @steelbrain/media-ingest-audio
 **Key Features:**
 - 🎙️ Automatic microphone access with optimal constraints
 - 🔄 16kHz resampling via AudioWorklet
+- 🎚️ Configurable volume gain for microphone normalization
 - 📊 Preserves audio quality during conversion
 - 🛡️ Handles sample rate conversion transparently
 
@@ -40,6 +41,9 @@ const mediaStream = await navigator.mediaDevices.getUserMedia({
 
 const audioStream = await ingestAudioStream(mediaStream);
 // Returns ReadableStream<Float32Array> of 16kHz audio samples
+
+// With volume gain for quiet microphones
+const boostedStream = await ingestAudioStream(mediaStream, { gain: 2.0 });
 ```
 
 ### [@steelbrain/media-speech-detection-web](./projects/media-speech-detection-web)
@@ -53,8 +57,8 @@ npm install @steelbrain/media-speech-detection-web
 **Key Features:**
 - 🧠 Silero VAD ONNX model (MIT licensed, production-ready accuracy)
 - 🔄 Modern streaming interface with Web Streams API
-- 📦 Two interfaces: `speechFilter()` (TransformStream) and `speechEvents()` (WritableStream)
-- ⚡ Optimized defaults: 160ms detection, 192ms lookback, 400ms redemption
+- 📦 Unified interface: `speechFilter()` TransformStream with `noEmit` option for events-only processing
+- ⚡ Optimized defaults: 160ms detection, 384ms lookback, 400ms redemption
 - 🛠️ Comprehensive callbacks: `onSpeechStart`, `onSpeechEnd`, `onError`, `onDebugLog`
 
 ```typescript
@@ -74,6 +78,48 @@ await audioStream
   .pipeTo(speechProcessor);
 ```
 
+### [@steelbrain/media-buffer-speech](./projects/media-buffer-speech)
+
+Speech buffering that accumulates audio chunks and releases them after natural pause periods.
+
+```bash
+npm install @steelbrain/media-buffer-speech
+```
+
+**Key Features:**
+- ⏸️ Configurable pause detection (default: 2 seconds)
+- 📦 Buffers chunks and releases arrays after pauses
+- 🛡️ Buffer overflow protection with error callbacks
+- 🔧 Perfect for detecting natural speech breaks
+- 📊 Debug logging for internal state monitoring
+- 🌊 `.tee()` pattern support with `noEmit` and `onBuffered` for advanced streaming
+
+```typescript
+import { bufferSpeech } from '@steelbrain/media-buffer-speech';
+
+// Buffer speech until 2-second pause
+const speechBuffer = bufferSpeech({
+  durationSeconds: 2.0,
+  maxBufferSeconds: 60.0,
+  onError: (err) => console.error('Buffer overflow:', err)
+});
+
+// Complete pipeline: speech detection → speech buffering → processing
+await audioStream
+  .pipeThrough(speechFilter())
+  .pipeThrough(speechBuffer)
+  .pipeTo(segmentProcessor);
+
+// Advanced: .tee() pattern for live transcription + turn detection
+const [liveStream, turnStream] = audioStream.tee();
+liveStream.pipeThrough(speechFilter()).pipeTo(liveTranscriber);
+turnStream.pipeThrough(speechFilter()).pipeThrough(bufferSpeech({
+  durationSeconds: 3.0,
+  noEmit: true,                 // Don't emit chunks
+  onBuffered: () => processCompleteTurn()  // Signal when turn is complete
+}));
+```
+
 ## 🚀 Quick Start
 
 ### Complete Pipeline Example
@@ -81,14 +127,15 @@ await audioStream
 ```typescript
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
 import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { bufferSpeech } from '@steelbrain/media-buffer-speech';
 
 // 1. Get microphone access
 const mediaStream = await navigator.mediaDevices.getUserMedia({
   audio: RECOMMENDED_AUDIO_CONSTRAINTS
 });
 
-// 2. Convert to 16kHz stream
-const audioStream = await ingestAudioStream(mediaStream);
+// 2. Convert to 16kHz stream with optional volume boost
+const audioStream = await ingestAudioStream(mediaStream, { gain: 1.5 });
 
 // 3. Create speech detection filter
 const speechTransform = speechFilter({
@@ -97,13 +144,21 @@ const speechTransform = speechFilter({
   threshold: 0.5 // Optimal default
 });
 
-// 4. Process only speech audio
+// 4. Create speech buffer for natural break points
+const speechBuffer = bufferSpeech({
+  durationSeconds: 2.0,
+  onError: (err) => console.error('Buffer overflow:', err)
+});
+
+// 5. Complete pipeline: microphone → speech detection → speech buffering → transcription
 await audioStream
-  .pipeThrough(speechTransform)
+  .pipeThrough(speechTransform)   // Filter for speech only
+  .pipeThrough(speechBuffer)      // Buffer speech until pauses
   .pipeTo(new WritableStream({
-    write(speechChunk) {
-      // Only receives audio chunks containing speech
-      sendToTranscription(speechChunk);
+    write(speechSegments) {
+      // Receives arrays of speech chunks after each pause
+      console.log(`Processing ${speechSegments.length} speech chunks`);
+      sendSegmentToTranscription(speechSegments);
     }
   }));
 ```
@@ -120,7 +175,7 @@ await audioStream
 
 ```bash
 # Clone and install
-git clone <repository-url>
+git clone https://github.com/steelbrain/media-toolkit
 cd media-toolkit
 yarn install
 
@@ -141,6 +196,7 @@ media-toolkit/
 ├── projects/
 │   ├── media-ingest-audio/           # MediaStream → ReadableStream
 │   ├── media-speech-detection-web/   # Speech detection with Silero VAD
+│   ├── media-buffer-speech/          # Speech buffering and pause detection
 │   └── example-nextjs/               # Complete demo application
 ├── package.json                      # Workspace configuration
 ├── tsconfig.json                     # Shared TypeScript config
@@ -201,11 +257,10 @@ Both packages are built around modern Web Streams API for optimal performance:
 | Metric | Value | Description |
 |--------|-------|-------------|
 | **Detection Latency** | ~160ms | Time to confirm speech detection |
-| **Lookback Buffer** | ~192ms | Smooth speech start capture |
-| **End-to-End Latency** | ~256ms | Complete pipeline processing |
+| **Ongoing Latency** | ~32ms | Per-frame processing once speaking |
+| **Lookback Buffer** | ~384ms | Historical context (not latency) |
 | **CPU Usage** | <1-2ms/frame | ONNX inference per 32ms frame |
 | **Memory Footprint** | ~8KB + 2.3MB | Buffers + ONNX model |
-| **Bandwidth Reduction** | 80-90% | Speech-only audio filtering |
 
 ### Modern Bundler Support
 
@@ -217,19 +272,19 @@ All packages are fully compatible with modern build tools:
 
 ## 🎯 Use Cases
 
-### Real-time Transcription
+#### Real-time Transcription
 Filter audio streams to send only speech segments to ASR services, reducing costs and improving accuracy.
 
-### Voice Commands
+#### Voice Commands
 Eliminate background noise and focus processing on actual speech for voice control interfaces.
 
-### Recording Optimization
+#### Recording Optimization
 Capture only spoken content, dramatically reducing file sizes and storage requirements.
 
-### Streaming Applications
+#### Streaming Applications
 Reduce bandwidth usage by transmitting speech-only audio in real-time communication apps.
 
-### Voice Analytics
+#### Voice Analytics
 Process speech segments for sentiment analysis, keyword detection, or conversation insights.
 
 ## 🧪 Technical Details
@@ -258,6 +313,7 @@ Advanced speech detection logic with multiple states:
 
 - **[Media Ingest Audio](./projects/media-ingest-audio/README.md)** - MediaStream conversion
 - **[Speech Detection](./projects/media-speech-detection-web/README.md)** - Silero VAD integration
+- **[Buffer Speech](./projects/media-buffer-speech/README.md)** - Speech buffering and pause detection
 - **[Example App](./projects/example-nextjs/README.md)** - Complete demo guide
 - **[Development Guide](./CLAUDE.md)** - Architecture and implementation details
 

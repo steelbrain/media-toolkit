@@ -5,6 +5,97 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@biomejs/biome@npm:^2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/biome@npm:2.1.2"
+  dependencies:
+    "@biomejs/cli-darwin-arm64": "npm:2.1.2"
+    "@biomejs/cli-darwin-x64": "npm:2.1.2"
+    "@biomejs/cli-linux-arm64": "npm:2.1.2"
+    "@biomejs/cli-linux-arm64-musl": "npm:2.1.2"
+    "@biomejs/cli-linux-x64": "npm:2.1.2"
+    "@biomejs/cli-linux-x64-musl": "npm:2.1.2"
+    "@biomejs/cli-win32-arm64": "npm:2.1.2"
+    "@biomejs/cli-win32-x64": "npm:2.1.2"
+  dependenciesMeta:
+    "@biomejs/cli-darwin-arm64":
+      optional: true
+    "@biomejs/cli-darwin-x64":
+      optional: true
+    "@biomejs/cli-linux-arm64":
+      optional: true
+    "@biomejs/cli-linux-arm64-musl":
+      optional: true
+    "@biomejs/cli-linux-x64":
+      optional: true
+    "@biomejs/cli-linux-x64-musl":
+      optional: true
+    "@biomejs/cli-win32-arm64":
+      optional: true
+    "@biomejs/cli-win32-x64":
+      optional: true
+  bin:
+    biome: bin/biome
+  checksum: 10c0/4863a5d64ff7e47c1f535aca3c0d59769fd1e59868b178798bf1f10de94f41188f235accddb852778743b16239dd890a520266dd2f93ecbcd147ad339caa8e23
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-darwin-arm64@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-darwin-arm64@npm:2.1.2"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-darwin-x64@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-darwin-x64@npm:2.1.2"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-linux-arm64-musl@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-linux-arm64-musl@npm:2.1.2"
+  conditions: os=linux & cpu=arm64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-linux-arm64@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-linux-arm64@npm:2.1.2"
+  conditions: os=linux & cpu=arm64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-linux-x64-musl@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-linux-x64-musl@npm:2.1.2"
+  conditions: os=linux & cpu=x64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-linux-x64@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-linux-x64@npm:2.1.2"
+  conditions: os=linux & cpu=x64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-win32-arm64@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-win32-arm64@npm:2.1.2"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@biomejs/cli-win32-x64@npm:2.1.2":
+  version: 2.1.2
+  resolution: "@biomejs/cli-win32-x64@npm:2.1.2"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
 "@emnapi/runtime@npm:^1.4.4":
   version: 1.4.5
   resolution: "@emnapi/runtime@npm:1.4.5"
@@ -766,6 +857,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@steelbrain/media-buffer-speech@npm:*, @steelbrain/media-buffer-speech@workspace:projects/media-buffer-speech":
+  version: 0.0.0-use.local
+  resolution: "@steelbrain/media-buffer-speech@workspace:projects/media-buffer-speech"
+  dependencies:
+    typescript: "npm:^5.8.3"
+    vitest: "npm:^3.2.4"
+    zshy: "npm:^0.2.5"
+  languageName: unknown
+  linkType: soft
+
 "@steelbrain/media-ingest-audio@npm:*, @steelbrain/media-ingest-audio@workspace:projects/media-ingest-audio":
   version: 0.0.0-use.local
   resolution: "@steelbrain/media-ingest-audio@workspace:projects/media-ingest-audio"
@@ -792,6 +893,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@steelbrain/media-toolkit-example@workspace:projects/example-nextjs"
   dependencies:
+    "@steelbrain/media-buffer-speech": "npm:*"
     "@steelbrain/media-ingest-audio": "npm:*"
     "@steelbrain/media-speech-detection-web": "npm:*"
     "@types/node": "npm:^20"
@@ -808,6 +910,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@steelbrain/media-toolkit@workspace:."
   dependencies:
+    "@biomejs/biome": "npm:^2.1.2"
     "@types/node": "npm:^24.0.15"
     typescript: "npm:^5.8.3"
     vitest: "npm:^3.2.4"

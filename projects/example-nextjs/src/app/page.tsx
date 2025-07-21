@@ -1,15 +1,17 @@
 'use client';
 
-import styles from "./page.module.css";
-import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from "@steelbrain/media-ingest-audio";
-import { speechFilter } from "@steelbrain/media-speech-detection-web";
-import { useState, useRef } from 'react';
+import { bufferSpeech } from '@steelbrain/media-buffer-speech';
+import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
+import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { useRef, useState } from 'react';
+import styles from './page.module.css';
 
 export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [speechEvents, setSpeechEvents] = useState<string[]>([]);
   const [speechBuffer, setSpeechBuffer] = useState<Float32Array[]>([]);
+  const [bufferedSegments, setBufferedSegments] = useState<Float32Array[][]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -21,6 +23,7 @@ export default function Home() {
 
   const clearSpeechBuffer = () => {
     setSpeechBuffer([]);
+    setBufferedSegments([]);
     addSpeechEvent('🗑️ Speech buffer cleared');
   };
 
@@ -85,11 +88,10 @@ export default function Home() {
       };
 
       source.start(0);
-
     } catch (err) {
       console.error('Error playing audio:', err);
       setIsPlaying(false);
-      addSpeechEvent('❌ Playback error: ' + (err as Error).message);
+      addSpeechEvent(`❌ Playback error: ${(err as Error).message}`);
     }
   };
 
@@ -98,6 +100,7 @@ export default function Home() {
       setError(null);
       setSpeechEvents([]);
       setSpeechBuffer([]); // Clear previous speech buffer
+      setBufferedSegments([]); // Clear buffered segments
       setIsRecording(true);
 
       // Create abort controller for cleanup
@@ -108,14 +111,16 @@ export default function Home() {
 
       // Request microphone access
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: RECOMMENDED_AUDIO_CONSTRAINTS
+        audio: RECOMMENDED_AUDIO_CONSTRAINTS,
       });
 
       console.log('Microphone access granted:', mediaStream);
       addSpeechEvent('✅ Microphone access granted');
 
       // Convert to 16kHz ReadableStream
-      const audioStream = await ingestAudioStream(mediaStream);
+      const audioStream = await ingestAudioStream(mediaStream, {
+        gain: 2,
+      });
 
       addSpeechEvent('🔄 Initializing Speech Detection...');
 
@@ -137,36 +142,48 @@ export default function Home() {
         },
 
         // Zero-configuration defaults work great, but you can customize:
-        threshold: 0.5,                    // Speech detection threshold
-        minSpeechDurationMs: 160,          // Minimum speech duration
-        redemptionDurationMs: 400,         // Grace period for pauses
-        lookBackDurationMs: 192,           // Lookback buffer for smooth starts (6 frames)
-        speechPadMs: 64                    // Padding around speech segments
+        threshold: 0.5, // Speech detection threshold
+        minSpeechDurationMs: 100, // Minimum speech duration
+        redemptionDurationMs: 2000, // Grace period for pauses
+        lookBackDurationMs: 384, // Lookback buffer for natural audio context (12 frames)
       });
 
-      // Create speech collector to capture speech chunks
-      const speechCollector = new WritableStream<Float32Array>({
-        write: (chunk) => {
-          console.log(`Speech chunk received: ${chunk.length} samples`);
-          console.log(`Sample data range: [${Math.min(...chunk).toFixed(6)}, ${Math.max(...chunk).toFixed(6)}]`);
-          
-          // Store speech chunk for playback
-          setSpeechBuffer(prev => [...prev, new Float32Array(chunk)]);
-          
-          // Update UI with chunk info
-          addSpeechEvent(`📊 Chunk: ${chunk.length} samples`);
-        }
+      // Create speech buffer that waits 3 seconds after speech ends
+      const speechBuffer = bufferSpeech({
+        durationSeconds: 3.0,
+        maxBufferSeconds: 60.0,
+        onError: error => {
+          console.error('Speech buffer error:', error);
+          addSpeechEvent(`❌ Buffer error: ${error.message}`);
+        },
       });
 
-      addSpeechEvent('🎧 Speech detection initialized, filtering for speech...');
+      // Create speech collector to capture buffered speech segments
+      const speechCollector = new WritableStream<Float32Array[]>({
+        write: segments => {
+          console.log(`Speech segment received: ${segments.length} chunks`);
 
-      // Chain the pipeline: audio → speech detection filter → speech collector
+          // Store buffered segments
+          setBufferedSegments(prev => [...prev, segments]);
+
+          // Also store individual chunks for playback compatibility
+          setSpeechBuffer(prev => [...prev, ...segments]);
+
+          // Update UI with segment info
+          const totalSamples = segments.reduce((sum, chunk) => sum + chunk.length, 0);
+          addSpeechEvent(`📦 Segment: ${segments.length} chunks (${totalSamples} samples)`);
+        },
+      });
+
+      addSpeechEvent('🎧 Speech detection initialized, buffering speech...');
+
+      // Chain the pipeline: audio → speech detection filter → speech buffer → segment collector
       await audioStream
         .pipeThrough(speechTransform, { signal: abortControllerRef.current.signal })
+        .pipeThrough(speechBuffer, { signal: abortControllerRef.current.signal })
         .pipeTo(speechCollector, { signal: abortControllerRef.current.signal });
-
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Error accessing microphone:', err);
         setError(err instanceof Error ? err.message : 'Unknown error occurred');
         addSpeechEvent(`❌ Error: ${err.message}`);
@@ -183,25 +200,38 @@ export default function Home() {
     }
     setIsRecording(false);
     const speechChunks = speechBuffer.length;
-    addSpeechEvent(`⏹️ Recording stopped (${speechChunks} speech chunks captured)`);
+    const segments = bufferedSegments.length;
+    addSpeechEvent(`⏹️ Recording stopped (${segments} segments, ${speechChunks} chunks captured)`);
   };
 
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <ol>
-          <li>
-            Click the button below to test advanced Speech Detection using Silero VAD.
-          </li>
-          <li>New Simplified Interface:</li>
+          <li>Click the button below to test advanced Speech Detection using Silero VAD.</li>
+          <li>Complete Speech Processing Pipeline:</li>
           <ul>
-            <li><strong>Streaming Pipeline</strong> - Clean `pipeThrough()` interface</li>
-            <li><strong>Event-Driven</strong> - Simple callback-based events</li>
-            <li><strong>Zero Configuration</strong> - Works perfectly with defaults</li>
-            <li><strong>Speech Detection Filtering</strong> - Only outputs audio chunks with detected speech</li>
-            <li><strong>Silero VAD ONNX Model</strong> - Enterprise-grade ML-based speech detection</li>
-            <li><strong>Lookback Buffer</strong> - Captures 192ms before speech starts for smooth transitions</li>
-            <li><strong>Speech Playback</strong> - Record and play back detected speech segments</li>
+            <li>
+              <strong>Streaming Pipeline</strong> - Clean `pipeThrough()` interface with three packages
+            </li>
+            <li>
+              <strong>Speech Detection</strong> - Filter audio for speech vs silence (Silero VAD)
+            </li>
+            <li>
+              <strong>Speech Buffering</strong> - Buffer speech until 3-second pauses (natural turns)
+            </li>
+            <li>
+              <strong>Event-Driven</strong> - Simple callback-based events and error handling
+            </li>
+            <li>
+              <strong>Zero Configuration</strong> - Works perfectly with optimal defaults
+            </li>
+            <li>
+              <strong>Conversation Turns</strong> - Detects natural conversation boundaries
+            </li>
+            <li>
+              <strong>Complete Segments</strong> - Process full utterances instead of fragments
+            </li>
           </ul>
         </ol>
 
@@ -216,7 +246,7 @@ export default function Home() {
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               🎤 Start Speech Detection
@@ -231,7 +261,7 @@ export default function Home() {
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               ⏹️ Stop Speech Detection
@@ -252,12 +282,12 @@ export default function Home() {
                   border: 'none',
                   borderRadius: '6px',
                   cursor: isPlaying ? 'not-allowed' : 'pointer',
-                  marginRight: '0.5rem'
+                  marginRight: '0.5rem',
                 }}
               >
                 {isPlaying ? '🔊 Playing...' : `🔊 Play Speech (${speechBuffer.length} chunks)`}
               </button>
-              
+
               <button
                 onClick={clearSpeechBuffer}
                 disabled={isPlaying}
@@ -268,7 +298,7 @@ export default function Home() {
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
-                  cursor: isPlaying ? 'not-allowed' : 'pointer'
+                  cursor: isPlaying ? 'not-allowed' : 'pointer',
                 }}
               >
                 🗑️ Clear Buffer
@@ -277,67 +307,75 @@ export default function Home() {
           )}
 
           {error && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              backgroundColor: '#ffebee',
-              color: '#c62828',
-              borderRadius: '4px',
-              border: '1px solid #ffcdd2'
-            }}>
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                backgroundColor: '#ffebee',
+                color: '#c62828',
+                borderRadius: '4px',
+                border: '1px solid #ffcdd2',
+              }}
+            >
               Error: {error}
             </div>
           )}
 
           {isRecording && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              backgroundColor: '#e8f5e8',
-              color: '#2e7d32',
-              borderRadius: '4px',
-              border: '1px solid #c8e6c9'
-            }}>
-              ✅ Speech Detection Filter Active - Only speech audio will be processed downstream!
-              <br />
-              📊 Speech Buffer: {speechBuffer.length} chunks captured
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                backgroundColor: '#e8f5e8',
+                color: '#2e7d32',
+                borderRadius: '4px',
+                border: '1px solid #c8e6c9',
+              }}
+            >
+              ✅ Speech Pipeline Active - Buffering speech until 3-second pauses!
+              <br />📊 Speech Buffer: {speechBuffer.length} chunks, {bufferedSegments.length} segments captured
             </div>
           )}
 
           {!isRecording && speechBuffer.length > 0 && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              backgroundColor: '#fff3cd',
-              color: '#856404',
-              borderRadius: '4px',
-              border: '1px solid #ffeaa7'
-            }}>
-              🎵 {speechBuffer.length} speech chunks ready for playback
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                backgroundColor: '#fff3cd',
+                color: '#856404',
+                borderRadius: '4px',
+                border: '1px solid #ffeaa7',
+              }}
+            >
+              🎵 {bufferedSegments.length} speech segments ({speechBuffer.length} chunks) ready for playback
             </div>
           )}
 
           {speechEvents.length > 0 && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              backgroundColor: '#f3f4f6',
-              borderRadius: '4px',
-              border: '1px solid #d1d5db',
-              textAlign: 'left',
-              maxHeight: '200px',
-              overflowY: 'auto'
-            }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#374151' }}>
-                Speech Detection Events:
-              </h4>
-              {speechEvents.map((event, index) => (
-                <div key={index} style={{
-                  fontSize: '0.8rem',
-                  fontFamily: 'monospace',
-                  margin: '0.25rem 0',
-                  color: event.includes('🎤') ? '#059669' : event.includes('🔇') ? '#dc2626' : '#6b7280'
-                }}>
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                backgroundColor: '#f3f4f6',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
+                textAlign: 'left',
+                maxHeight: '200px',
+                overflowY: 'auto',
+              }}
+            >
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#374151' }}>Speech Detection Events:</h4>
+              {speechEvents.map(event => (
+                <div
+                  key={event}
+                  style={{
+                    fontSize: '0.8rem',
+                    fontFamily: 'monospace',
+                    margin: '0.25rem 0',
+                    color: event.includes('🎤') ? '#059669' : event.includes('🔇') ? '#dc2626' : '#6b7280',
+                  }}
+                >
                   {event}
                 </div>
               ))}
@@ -345,24 +383,30 @@ export default function Home() {
           )}
 
           <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#6b7280', textAlign: 'left' }}>
-            <h3>New Simplified API:</h3>
-            
-            <pre style={{ backgroundColor: '#f8f9fa', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
-{`import { speechFilter } from '@steelbrain/media-speech-detection-web';
+            <h3>Complete Speech Processing Pipeline:</h3>
 
-// Create speech detection transform stream
+            <pre style={{ backgroundColor: '#f8f9fa', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
+              {`import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { bufferSpeech } from '@steelbrain/media-buffer-speech';
+
+// Speech detection: filter for speech vs silence
 const speechTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
-  threshold: 0.5,                // Optional: customize detection
-  minSpeechDurationMs: 160,      // Optional: minimum speech length
-  lookBackDurationMs: 192        // Optional: smooth speech start
+  threshold: 0.5
 });
 
-// Chain the pipeline
+// Speech buffering: wait for natural conversation pauses
+const speechBuffer = bufferSpeech({
+  durationSeconds: 3.0,          // Wait 3s after speech ends
+  maxBufferSeconds: 60.0         // Buffer overflow protection
+});
+
+// Complete pipeline: detection → buffering → processing
 await audioStream
-  .pipeThrough(speechTransform)
-  .pipeTo(speechProcessor);`}
+  .pipeThrough(speechTransform)  // Filter for speech
+  .pipeThrough(speechBuffer)     // Buffer until pauses
+  .pipeTo(segmentProcessor);     // Process complete segments`}
             </pre>
           </div>
         </div>

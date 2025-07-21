@@ -10,9 +10,11 @@
     "build": "yarn workspaces foreach --all run build",
     "test": "yarn workspaces foreach --all run test",
     "lint": "yarn workspaces foreach --all run lint",
-    "typecheck": "yarn workspaces foreach --all run typecheck"
+    "typecheck": "yarn workspaces foreach --all run typecheck",
+    "lint:biome": "biome check ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.1.2",
     "@types/node": "^24.0.15",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

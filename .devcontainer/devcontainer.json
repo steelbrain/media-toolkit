@@ -6,23 +6,14 @@
       "TZ": "${localEnv:TZ:America/Los_Angeles}"
     }
   },
-  "runArgs": [
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
-  ],
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
   "customizations": {
     "vscode": {
-      "extensions": [
-        "biomejs.biome",
-        "ms-vscode-remote.remote-containers"
-      ],
+      "extensions": ["biomejs.biome", "ms-vscode-remote.remote-containers"],
       "settings": {
         "workbench.editor.enablePreview": false,
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "biomejs.biome",
-        "editor.codeActionsOnSave": {
-          "source.fixAll.eslint": "explicit"
-        },
         "terminal.integrated.defaultProfile.linux": "bash",
         "terminal.integrated.profiles.linux": {
           "bash": {
