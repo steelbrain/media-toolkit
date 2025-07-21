@@ -95,7 +95,7 @@ npm run start
 const speechTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
-  onVadMisfire: () => console.log('⚠️ Speech too short'),
+  onMisfire: () => console.log('⚠️ Speech too short'),
 
   // Optimal defaults (customizable)
   threshold: 0.5,                    // Speech detection sensitivity
@@ -137,7 +137,7 @@ const speechTransform = speechFilter({
   // Event Handlers
   onSpeechStart: () => void,           // Speech detection start
   onSpeechEnd: (audio) => void,        // Speech detection end + audio data
-  onVadMisfire: () => void,            // Short speech segment filtered
+  onMisfire: () => void,            // Short speech segment filtered
   onError: (error) => void,            // Error handling
   onDebugLog: (message) => void,       // Internal state logging
 

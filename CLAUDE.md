@@ -207,7 +207,7 @@ const audioStream = await ingestAudioStream(mediaStream);
 const speechTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
-  onVadMisfire: () => console.log('⚠️ VAD misfire')
+  onMisfire: () => console.log('⚠️ VAD misfire')
 });
 
 // Chain the pipeline: audio → speech filter → processor
@@ -226,7 +226,7 @@ await audioStream
 const speechTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
-  onVadMisfire: () => console.log('⚠️ VAD misfire'),
+  onMisfire: () => console.log('⚠️ VAD misfire'),
   onError: (error) => console.error('Speech detection error:', error),
   onDebugLog: (message) => console.log('Debug:', message),
 
@@ -244,7 +244,7 @@ interface VADOptions {
   // Event Handlers
   onSpeechStart?: () => void;
   onSpeechEnd?: (speechAudio: Float32Array) => void;
-  onVadMisfire?: () => void;
+  onMisfire?: () => void;
   onError?: (error: Error) => void;
   onDebugLog?: (message: string) => void;
 
@@ -338,7 +338,7 @@ The example includes audio playback functionality:
 const speechTransform = speechFilter({
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
-  onVadMisfire: () => console.log('⚠️ VAD misfire - speech segment too short'),
+  onMisfire: () => console.log('⚠️ VAD misfire - speech segment too short'),
   onError: (error) => console.error('Speech detection error:', error),
   onDebugLog: (message) => console.log('Debug:', message), // Comprehensive internal state logging
 

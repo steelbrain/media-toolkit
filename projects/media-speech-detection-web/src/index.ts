@@ -6,7 +6,7 @@ import * as ort from 'onnxruntime-web';
 export interface VADEventHandlers {
   onSpeechStart?: () => void;
   onSpeechEnd?: (speechAudio: Float32Array) => void;
-  onVadMisfire?: () => void;
+  onMisfire?: () => void;
   onError?: (error: Error) => void;
   onDebugLog?: (message: string) => void;
 }
@@ -140,7 +140,7 @@ class VADProcessor {
     this.eventHandlers = {};
     if (options.onSpeechStart) this.eventHandlers.onSpeechStart = options.onSpeechStart;
     if (options.onSpeechEnd) this.eventHandlers.onSpeechEnd = options.onSpeechEnd;
-    if (options.onVadMisfire) this.eventHandlers.onVadMisfire = options.onVadMisfire;
+    if (options.onMisfire) this.eventHandlers.onMisfire = options.onMisfire;
     if (options.onError) this.eventHandlers.onError = options.onError;
     if (options.onDebugLog) this.eventHandlers.onDebugLog = options.onDebugLog;
 
@@ -198,13 +198,13 @@ class VADProcessor {
     const outputChunks: Float32Array[] = [];
 
     if (this.vadState === 'speaking' || this.vadState === 'intermediate') {
-      const speechDurationS = (Date.now() - this.speechStartTime) / 1000;
+      const speechDurationSeconds = (Date.now() - this.speechStartTime) / 1000;
       this.resetSpeechState();
 
-      if (speechDurationS >= (this.minSpeechFrames * this.FRAME_SIZE) / this.SAMPLE_RATE) {
+      if (speechDurationSeconds >= (this.minSpeechFrames * this.FRAME_SIZE) / this.SAMPLE_RATE) {
         this.eventHandlers.onSpeechEnd?.(new Float32Array(0));
       } else {
-        this.eventHandlers.onVadMisfire?.();
+        this.eventHandlers.onMisfire?.();
       }
     }
 
@@ -369,13 +369,13 @@ class VADProcessor {
   }
 
   private endSpeechSegment(): void {
-    const speechDurationS = (Date.now() - this.speechStartTime) / 1000;
+    const speechDurationSeconds = (Date.now() - this.speechStartTime) / 1000;
     this.resetSpeechState();
 
-    if (speechDurationS >= (this.minSpeechFrames * this.FRAME_SIZE) / this.SAMPLE_RATE) {
+    if (speechDurationSeconds >= (this.minSpeechFrames * this.FRAME_SIZE) / this.SAMPLE_RATE) {
       this.eventHandlers.onSpeechEnd?.(new Float32Array(0));
     } else {
-      this.eventHandlers.onVadMisfire?.();
+      this.eventHandlers.onMisfire?.();
     }
   }
 

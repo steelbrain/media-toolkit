@@ -188,7 +188,7 @@ describe('speechFilter', () => {
         onSpeechEnd: audio => {
           speechEndCalls.push({ time: Date.now(), audio });
         },
-        onVadMisfire: () => {
+        onMisfire: () => {
           vadMisfireCalls.push(Date.now());
         },
       });

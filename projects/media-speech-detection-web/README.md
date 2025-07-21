@@ -46,7 +46,7 @@ eventsStream.pipeThrough(speechFilter({
   noEmit: true,  // Don't emit audio chunks
   onSpeechStart: () => console.log('🎤 Speech started'),
   onSpeechEnd: () => console.log('🔇 Speech ended'),
-  onVadMisfire: () => console.log('⚠️ Short speech segment filtered')
+  onMisfire: () => console.log('⚠️ Short speech segment filtered')
 }));
 ```
 
@@ -65,7 +65,7 @@ interface VADOptions {
   // Event Handlers
   onSpeechStart?: () => void;
   onSpeechEnd?: (speechAudio: Float32Array) => void;
-  onVadMisfire?: () => void;
+  onMisfire?: () => void;
   onError?: (error: Error) => void;
   onDebugLog?: (message: string) => void;
 

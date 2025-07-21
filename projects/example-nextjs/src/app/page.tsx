@@ -136,7 +136,7 @@ export default function Home() {
           addSpeechEvent('🔇 Speech ended');
         },
 
-        onVadMisfire: () => {
+        onMisfire: () => {
           console.log('⚠️ VAD misfire (speech segment too short)');
           addSpeechEvent('⚠️ Speech misfire');
         },
