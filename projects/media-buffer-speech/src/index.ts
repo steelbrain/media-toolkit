@@ -136,16 +136,10 @@ export function bufferSpeech<T>(options: BufferSpeechOptions = {}): TransformStr
       }, durationMs);
     },
 
-    flush: () => {
-      debugLog('Stream ending, discarding final buffer without enqueuing');
-      // Clean up timer and buffer without enqueuing
-      if (pauseTimer) {
-        clearTimeout(pauseTimer);
-        pauseTimer = null;
-      }
-      buffer = [];
-      bufferStartTime = null;
-      chunkCount = 0;
+    flush: (controller) => {
+      debugLog('Stream ending, releasing final buffer');
+      // Release any buffered content
+      releaseBuffer(controller);
     },
   });
 }

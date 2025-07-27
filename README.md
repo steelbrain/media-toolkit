@@ -19,7 +19,7 @@
 
 ### [@steelbrain/media-ingest-audio](./projects/media-ingest-audio)
 
-Convert MediaStream audio to 16kHz ReadableStream for downstream processing.
+Convert MediaStream audio to ReadableStream with configurable sample rate for downstream processing.
 
 ```bash
 npm install @steelbrain/media-ingest-audio
@@ -27,10 +27,11 @@ npm install @steelbrain/media-ingest-audio
 
 **Key Features:**
 - 🎙️ Automatic microphone access with optimal constraints
-- 🔄 16kHz resampling via AudioWorklet
+- 🔄 Configurable sample rate via AudioWorklet (default: 16kHz)
 - 🎚️ Configurable volume gain for microphone normalization
 - 📊 Preserves audio quality during conversion
 - 🛡️ Handles sample rate conversion transparently
+- 🎵 Support for various sample rates (8kHz to 96kHz+)
 
 ```typescript
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
@@ -40,10 +41,13 @@ const mediaStream = await navigator.mediaDevices.getUserMedia({
 });
 
 const audioStream = await ingestAudioStream(mediaStream);
-// Returns ReadableStream<Float32Array> of 16kHz audio samples
+// Returns ReadableStream<Float32Array> of 16kHz audio samples (default)
 
 // With volume gain for quiet microphones
 const boostedStream = await ingestAudioStream(mediaStream, { gain: 2.0 });
+
+// With custom sample rate for music quality
+const musicStream = await ingestAudioStream(mediaStream, { sampleRate: 44100 });
 ```
 
 ### [@steelbrain/media-speech-detection-web](./projects/media-speech-detection-web)
@@ -134,7 +138,7 @@ const mediaStream = await navigator.mediaDevices.getUserMedia({
   audio: RECOMMENDED_AUDIO_CONSTRAINTS
 });
 
-// 2. Convert to 16kHz stream with optional volume boost
+// 2. Convert to 16kHz stream (default) with optional volume boost
 const audioStream = await ingestAudioStream(mediaStream, { gain: 1.5 });
 
 // 3. Create speech detection filter
@@ -291,8 +295,8 @@ Process speech segments for sentiment analysis, keyword detection, or conversati
 
 ### Audio Processing
 - **Input Format**: Any MediaStream (typically microphone)
-- **Processing Rate**: 16kHz PCM mono (industry standard)
-- **Frame Size**: 512 samples (32ms frames)
+- **Processing Rate**: Configurable sample rate (default: 16kHz PCM mono)
+- **Frame Size**: 512 samples (32ms frames at 16kHz)
 - **Context Window**: 64 samples for model accuracy
 
 ### Speech Detection Model
