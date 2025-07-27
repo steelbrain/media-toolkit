@@ -1,6 +1,6 @@
 {
   "name": "@steelbrain/media-speech-detection-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Production-ready speech detection using Silero VAD ONNX model for web browsers",
   "files": [
     "dist",

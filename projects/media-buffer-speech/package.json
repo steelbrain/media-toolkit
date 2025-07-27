@@ -1,6 +1,6 @@
 {
   "name": "@steelbrain/media-buffer-speech",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Speech buffering that accumulates audio chunks and releases them after natural pause periods",
   "files": [
     "dist"
