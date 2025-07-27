@@ -60,8 +60,9 @@ example-nextjs → Demonstration app (Next.js 15 + React 19)
 
 ### MediaStreamToReadableStream
 - **Location**: `projects/media-ingest-audio/src/index.ts`
-- **Purpose**: Converts browser MediaStream to ReadableStream using MediaRecorder API
-- **Pattern**: Configurable WebM/Opus encoding with chunk streaming
+- **Purpose**: Converts browser MediaStream to ReadableStream with configurable sample rate (default: 16kHz)
+- **Pattern**: AudioWorklet-based processing with configurable gain, channel selection, and sample rate
+- **Features**: Volume gain control, specific channel extraction from multi-channel streams, configurable sample rate
 
 ### Speech Detection Functions
 - **Location**: `projects/media-speech-detection-web/src/index.ts`
@@ -200,8 +201,21 @@ const mediaStream = await navigator.mediaDevices.getUserMedia({
   audio: RECOMMENDED_AUDIO_CONSTRAINTS
 });
 
-// Convert to 16kHz ReadableStream
+// Convert to 16kHz ReadableStream (default)
 const audioStream = await ingestAudioStream(mediaStream);
+
+// With volume boost for quiet microphones
+const boostedStream = await ingestAudioStream(mediaStream, { gain: 2.0 });
+
+// Process specific channel from stereo/multi-channel audio
+const leftChannel = await ingestAudioStream(mediaStream, { channelId: 0 });  // Left channel
+const rightChannel = await ingestAudioStream(mediaStream, { channelId: 1 }); // Right channel
+
+// Use custom sample rate (e.g., 48kHz)
+const highQualityStream = await ingestAudioStream(mediaStream, { sampleRate: 48000 });
+
+// Combine options: boost specific channel with custom sample rate
+const boostedRightChannel = await ingestAudioStream(mediaStream, { gain: 1.5, channelId: 1, sampleRate: 44100 });
 
 // Create speech filter with zero configuration - works great with defaults!
 const speechTransform = speechFilter({

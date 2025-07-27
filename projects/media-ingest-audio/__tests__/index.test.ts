@@ -36,8 +36,6 @@ describe('RECOMMENDED_AUDIO_CONSTRAINTS', () => {
     expect(RECOMMENDED_AUDIO_CONSTRAINTS).toEqual({
       sampleRate: 16000,
       channelCount: 1,
-      echoCancellation: true,
-      noiseSuppression: true,
     });
   });
 
@@ -102,6 +100,7 @@ describe('ingestAudioStream', () => {
     expect(mockAudioWorkletNode).toHaveBeenCalledWith(expect.anything(), 'resampler-processor', {
       processorOptions: {
         gain: 2.5,
+        channelId: 0,
       },
     });
   });
@@ -116,6 +115,7 @@ describe('ingestAudioStream', () => {
     expect(mockAudioWorkletNode).toHaveBeenCalledWith(expect.anything(), 'resampler-processor', {
       processorOptions: {
         gain: 1.0,
+        channelId: 0,
       },
     });
   });
@@ -130,6 +130,7 @@ describe('ingestAudioStream', () => {
     expect(mockAudioWorkletNode).toHaveBeenCalledWith(expect.anything(), 'resampler-processor', {
       processorOptions: {
         gain: 1.0,
+        channelId: 0,
       },
     });
   });
@@ -144,6 +145,7 @@ describe('ingestAudioStream', () => {
     expect(mockAudioWorkletNode).toHaveBeenCalledWith(expect.anything(), 'resampler-processor', {
       processorOptions: {
         gain: 0,
+        channelId: 0,
       },
     });
   });
@@ -158,6 +160,7 @@ describe('ingestAudioStream', () => {
     expect(mockAudioWorkletNode).toHaveBeenCalledWith(expect.anything(), 'resampler-processor', {
       processorOptions: {
         gain: 0.25,
+        channelId: 0,
       },
     });
   });
