@@ -66,7 +66,10 @@ npm install @steelbrain/media-speech-detection-web
 - 🛠️ Comprehensive callbacks: `onSpeechStart`, `onSpeechEnd`, `onError`, `onDebugLog`
 
 ```typescript
-import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
+
+// Optional: Preload model for faster initialization
+await preloadModel();
 
 // Create speech detection transform
 const speechTransform = speechFilter({
@@ -130,8 +133,11 @@ turnStream.pipeThrough(speechFilter()).pipeThrough(bufferSpeech({
 
 ```typescript
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
-import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
 import { bufferSpeech } from '@steelbrain/media-buffer-speech';
+
+// 0. Optional: Preload VAD model during app initialization for faster first use
+await preloadModel();
 
 // 1. Get microphone access
 const mediaStream = await navigator.mediaDevices.getUserMedia({

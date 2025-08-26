@@ -13,8 +13,11 @@ npm install @steelbrain/media-speech-detection-web
 ## Quick Start
 
 ```typescript
-import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
+
+// Optional: Preload model during app initialization for faster first use
+await preloadModel();
 
 // Get microphone access
 const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -51,6 +54,12 @@ eventsStream.pipeThrough(speechFilter({
 ```
 
 ## API Reference
+
+### `preloadModel(): Promise<void>`
+
+Preloads the Silero VAD ONNX model by fetching it into browser cache, eliminating network delay when speech detection is first used.
+
+**Usage**: `await preloadModel()` - Call during app initialization for optimal performance.
 
 ### `speechFilter(options): TransformStream<Float32Array, Float32Array>`
 
@@ -108,6 +117,9 @@ const vadTransform = speechFilter({
 ### Real-time Speech Transcription Pipeline
 
 ```typescript
+// Preload model during app startup
+await preloadModel();
+
 // Complete pipeline: microphone → VAD → transcription
 await audioStream
   .pipeThrough(speechFilter({
@@ -117,6 +129,20 @@ await audioStream
   }))
   .pipeThrough(transcriptionTransform)
   .pipeTo(displayResults);
+```
+
+### Performance Optimization
+
+```typescript
+// Preload model early in your application lifecycle
+window.addEventListener('load', async () => {
+  try {
+    await preloadModel();
+    console.log('VAD model preloaded and cached');
+  } catch (error) {
+    console.warn('Failed to preload VAD model:', error);
+  }
+});
 ```
 
 ## How It Works

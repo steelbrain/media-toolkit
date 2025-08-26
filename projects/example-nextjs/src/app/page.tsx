@@ -2,8 +2,8 @@
 
 import { bufferSpeech } from '@steelbrain/media-buffer-speech';
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
-import { speechFilter } from '@steelbrain/media-speech-detection-web';
-import { useRef, useState } from 'react';
+import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
+import { useRef, useState, useEffect } from 'react';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -13,8 +13,29 @@ export default function Home() {
   const [speechBuffer, setSpeechBuffer] = useState<Float32Array[]>([]);
   const [bufferedSegments, setBufferedSegments] = useState<Float32Array[][]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(true);
+  const [preloadError, setPreloadError] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Preload VAD model on component mount
+  useEffect(() => {
+    const triggerModelPreload = async () => {
+      try {
+        setIsPreloading(true);
+        setPreloadError(null);
+        await preloadModel();
+        console.log('VAD model preloaded successfully');
+      } catch (err) {
+        console.warn('Failed to preload VAD model:', err);
+        setPreloadError(err instanceof Error ? err.message : 'Unknown preload error');
+      } finally {
+        setIsPreloading(false);
+      }
+    };
+
+    triggerModelPreload();
+  }, []);
 
   const addSpeechEvent = (event: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -122,7 +143,7 @@ export default function Home() {
         gain: 2,
       });
 
-      addSpeechEvent('🔄 Initializing Speech Detection...');
+      addSpeechEvent('🔄 Initializing Speech Detection (model preloaded)...');
 
       // Create speech detection transform stream with simplified interface
       const speechTransform = speechFilter({
@@ -236,17 +257,64 @@ export default function Home() {
         </ol>
 
         <div style={{ margin: '2rem 0', textAlign: 'center' }}>
+          {/* Preloading Status */}
+          {isPreloading && (
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '1rem',
+                backgroundColor: '#e3f2fd',
+                color: '#1565c0',
+                borderRadius: '4px',
+                border: '1px solid #bbdefb',
+              }}
+            >
+              🔄 Preloading VAD model for faster initialization...
+            </div>
+          )}
+
+          {preloadError && (
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '1rem',
+                backgroundColor: '#fff3cd',
+                color: '#856404',
+                borderRadius: '4px',
+                border: '1px solid #ffeaa7',
+              }}
+            >
+              ⚠️ VAD preload failed (will load on first use): {preloadError}
+            </div>
+          )}
+
+          {!isPreloading && !preloadError && (
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '1rem',
+                backgroundColor: '#d1ecf1',
+                color: '#0c5460',
+                borderRadius: '4px',
+                border: '1px solid #b8daff',
+              }}
+            >
+              ✅ VAD model preloaded - speech detection will start instantly!
+            </div>
+          )}
+
           {!isRecording ? (
             <button
               onClick={requestMicrophone}
+              disabled={isPreloading}
               style={{
                 padding: '1rem 2rem',
                 fontSize: '1.1rem',
-                backgroundColor: '#0070f3',
+                backgroundColor: isPreloading ? '#ccc' : '#0070f3',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
-                cursor: 'pointer',
+                cursor: isPreloading ? 'not-allowed' : 'pointer',
               }}
             >
               🎤 Start Speech Detection
@@ -386,8 +454,11 @@ export default function Home() {
             <h3>Complete Speech Processing Pipeline:</h3>
 
             <pre style={{ backgroundColor: '#f8f9fa', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
-              {`import { speechFilter } from '@steelbrain/media-speech-detection-web';
+              {`import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
 import { bufferSpeech } from '@steelbrain/media-buffer-speech';
+
+// Optional: Preload VAD model for faster initialization
+await preloadModel();
 
 // Speech detection: filter for speech vs silence
 const speechTransform = speechFilter({

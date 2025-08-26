@@ -34,6 +34,43 @@ export interface VADOptions extends VADEventHandlers, VADConfig {
 }
 
 /**
+ * Preloads the Silero VAD ONNX model by fetching it into browser cache.
+ *
+ * This function fetches the VAD model file to ensure it's cached by the browser,
+ * eliminating the network delay when speech detection is first used. The browser's
+ * HTTP cache will handle storing and serving the model for subsequent requests.
+ *
+ * @returns Promise that resolves when the model file has been fetched and cached
+ * @throws Error if the model file cannot be fetched
+ *
+ * @example
+ * ```typescript
+ * // Preload during app initialization
+ * await preloadModel();
+ *
+ * // Later, speech filters will load faster from browser cache
+ * const speechTransform = speechFilter({
+ *   onSpeechStart: () => console.log('🎤 Speech started')
+ * });
+ * ```
+ */
+export async function preloadModel(): Promise<void> {
+  try {
+    const modelUrl = new URL('../silero_vad.onnx', import.meta.url).href;
+    const response = await fetch(modelUrl);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+    }
+
+    // Consume the response to ensure it's fully cached
+    await response.arrayBuffer();
+  } catch (error) {
+    throw new Error(`Failed to preload Silero VAD model: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Speech filter transform stream - filters audio to only output speech chunks
  *
  * Usage:
