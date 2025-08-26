@@ -1,6 +1,6 @@
 {
   "name": "@steelbrain/media-ingest-audio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Takes an incoming MediaStream and converts it into a ReadableStream for downstream consumers",
   "files": [
     "dist"
