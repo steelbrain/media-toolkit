@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Upcoming]
+
+### Added
+
+- **@steelbrain/media-speech-detection-web**: Add `preloadModel()` function for faster speech detection initialization
+  - Preloads the Silero VAD ONNX model by fetching it into browser cache during app initialization
+  - Optional but recommended for optimal user experience in production applications
+
 ## [1.1.0] - Jul 27, 2025
 
 ### Added

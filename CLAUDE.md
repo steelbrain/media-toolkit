@@ -194,7 +194,10 @@ const speechOnlyStream = vad.connect(audioStream);
 #### Zero-Configuration Usage (Recommended)
 ```typescript
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
-import { speechFilter, speechEvents } from '@steelbrain/media-speech-detection-web';
+import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
+
+// Optional: Preload VAD model for faster initialization
+await preloadModel();
 
 // Get microphone stream with optimal settings
 const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -273,8 +276,11 @@ interface VADOptions {
 #### Complete Three-Package Pipeline
 ```typescript
 import { ingestAudioStream, RECOMMENDED_AUDIO_CONSTRAINTS } from '@steelbrain/media-ingest-audio';
-import { speechFilter } from '@steelbrain/media-speech-detection-web';
+import { speechFilter, preloadModel } from '@steelbrain/media-speech-detection-web';
 import { bufferSpeech } from '@steelbrain/media-buffer-speech';
+
+// Preload VAD model during app initialization
+await preloadModel();
 
 // Complete voice processing pipeline
 const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -429,12 +435,18 @@ The package has been completely redesigned around a simplified streaming API:
 
 ### Core Functions
 
-1. **`speechFilter(options)`** - TransformStream for pipeline processing
+1. **`preloadModel()`** - Preloads ONNX model for faster initialization
+   - Fetches the VAD model into browser cache during app startup
+   - Eliminates network delay when speech detection is first used
+   - Safe to call multiple times, idempotent operation
+   - Optional but recommended for optimal user experience
+
+2. **`speechFilter(options)`** - TransformStream for pipeline processing
    - Filters audio to only output speech chunks
    - Perfect for `audioStream.pipeThrough(speechFilter()).pipeTo(processor)`
    - Zero-configuration with optimal defaults
 
-2. **`speechEvents(options)`** - WritableStream for event-only processing
+3. **`speechEvents(options)`** - WritableStream for event-only processing
    - Processes audio and emits speech detection events
    - Perfect for `audioStream.pipeTo(speechEvents())`
    - No audio output, just callbacks
